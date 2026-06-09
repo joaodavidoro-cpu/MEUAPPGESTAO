@@ -1,5 +1,5 @@
 /* Service Worker — cache offline (app shell) */
-const CACHE = 'oros-hub-v2';
+const CACHE = 'oros-hub-v3';
 const ASSETS = [
   './',
   './index.html',
