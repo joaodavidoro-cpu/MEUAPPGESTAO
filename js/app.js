@@ -1061,7 +1061,19 @@ function exportCSV(){
 
 /* ================= Boot ================= */
 if('serviceWorker' in navigator){
-  window.addEventListener('load',()=> navigator.serviceWorker.register('sw.js').catch(()=>{}));
+  // auto-atualização: quando um novo service worker assumir, recarrega 1x sozinho
+  const hadController = !!navigator.serviceWorker.controller;
+  let refreshing=false;
+  navigator.serviceWorker.addEventListener('controllerchange', ()=>{
+    if(!hadController || refreshing) return;
+    refreshing=true; location.reload();
+  });
+  window.addEventListener('load', ()=>{
+    navigator.serviceWorker.register('sw.js').then(reg=>{
+      reg.update();                 // procura versão nova a cada abertura
+      setInterval(()=>reg.update(), 60*60*1000);
+    }).catch(()=>{});
+  });
 }
 go('painel');
 requestAnimationFrame(moveIndicator);

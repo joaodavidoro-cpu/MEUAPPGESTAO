@@ -389,3 +389,15 @@ textarea{min-height:84px;resize:vertical}
 .hab-tx strong{font-size:15px}.hab-tx small{font-size:12px;color:var(--muted)}
 .hab.done .hab-tx strong{text-decoration:line-through;opacity:.7}
 .hab-del{color:var(--red);font-size:16px;flex:none}
+
+/* ===== v11: cabeçalho — Garagem abaixo do logo + auto-update ===== */
+.app-header{align-items:flex-start}
+.header-left{flex-direction:column;align-items:flex-start;gap:8px}
+.menu-btn{
+  display:inline-flex;align-items:center;gap:6px;
+  background:var(--card);border:1px solid var(--line);border-radius:10px;
+  padding:7px 12px;font-size:12px;font-weight:800;color:var(--ink);
+  transition:transform .15s ease,border-color .2s ease;
+}
+.menu-btn:hover{border-color:var(--accent)}
+.menu-btn:active{transform:scale(.95)}
