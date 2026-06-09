@@ -86,16 +86,40 @@ const somaGanhos = r => (r.ganhos||[]).reduce((s,g)=>s+num(g.valor),0);
 
 /* ================= ROTEADOR ================= */
 const routes = {};
+const ROUTE_ORDER = { painel:0, historico:1, novo:2, manutencao:3, orcamento:4 };
 let current = 'painel';
+let prevIndex = 0;
 function go(route){
+  const ni = ROUTE_ORDER[route] ?? 0;
+  const dir = ni >= prevIndex ? 1 : -1;
+  prevIndex = ni;
   current = route;
   document.querySelectorAll('.tab').forEach(t=>t.classList.toggle('active', t.dataset.route===route));
+  moveIndicator();
   const v = document.getElementById('view');
   v.innerHTML = '';
   (routes[route]||routes.painel)(v);
   window.scrollTo(0,0);
+  // transição direcional suave, sem delay
+  v.style.setProperty('--enter-x', (dir*26)+'px');
+  v.classList.remove('enter'); void v.offsetWidth; v.classList.add('enter');
 }
 document.querySelectorAll('.tab').forEach(t=> t.addEventListener('click', ()=>go(t.dataset.route)));
+
+/* indicador deslizante da barra inferior (recria a animação da referência) */
+function moveIndicator(){
+  const bar=document.querySelector('.tabbar');
+  const ind=document.querySelector('.tab-indicator');
+  const active=document.querySelector('.tab.active');
+  if(!bar||!ind||!active) return;
+  if(active.classList.contains('tab-add')){ ind.style.opacity='0'; return; }
+  const br=bar.getBoundingClientRect(), r=active.getBoundingClientRect();
+  const cx = r.left + r.width/2 - br.left;
+  ind.style.opacity='1';
+  ind.style.transform = `translateX(${cx-23}px)`;
+}
+window.addEventListener('resize', moveIndicator);
+
 
 /* ================= PAINEL ================= */
 routes.painel = (root)=>{
@@ -123,9 +147,23 @@ routes.painel = (root)=>{
   const platArr = Object.entries(porPlat).sort((a,b)=>b[1]-a[1]);
   const maxPlat = Math.max(1, ...platArr.map(p=>p[1]));
 
+  const saldoNeg = saldoFinal<0;
   root.innerHTML = `
-    <h1 class="page-title">Painel</h1>
-    <p class="page-sub">Visão geral de ganhos, despesas e gastos pessoais</p>
+    <div class="hero">
+      <div class="hero-top">
+        <span class="hero-label">Saldo do período</span>
+        <span class="hero-chip">${periodoTexto()}</span>
+      </div>
+      <div class="hero-value">${money(saldoFinal)}</div>
+      <div class="hero-change ${saldoNeg?'neg':'pos'}">${saldoNeg?'▼':'▲'} ${money(Math.abs(lucroMoto))} de lucro na moto</div>
+      <div class="hero-actions">
+        <button class="qbtn" data-act="novo"><span class="q-ico">＋</span><span>Registrar</span></button>
+        <button class="qbtn" data-act="historico"><span class="q-ico">🗒️</span><span>Histórico</span></button>
+        <button class="qbtn" data-act="backup"><span class="q-ico">⬇</span><span>Backup</span></button>
+      </div>
+    </div>
+
+    <div class="block-title">Resumo do período</div>
     <div class="metrics">
       ${metric('Total Ganho','g','$',money(totalGanho), motos.length+ganhosExtra.length+' registros')}
       ${metric('Lucro Líquido (moto)','b','📈',money(lucroMoto), lucroMoto<0?'Prejuízo':'Após despesas', lucroMoto<0?'neg':'pos')}
@@ -174,7 +212,14 @@ routes.painel = (root)=>{
   const fileInp = document.getElementById('restoreFile');
   document.getElementById('restoreBtn').onclick = ()=> fileInp.click();
   fileInp.onchange = e=>{ if(e.target.files[0]) importBackup(e.target.files[0]); e.target.value=''; };
+  root.querySelectorAll('.qbtn').forEach(b=>b.onclick=()=>{
+    const a=b.dataset.act;
+    if(a==='backup'){ exportBackup(); } else go(a);
+  });
 };
+function periodoTexto(){
+  return PERIODO==='mes'?'Este mês' : PERIODO==='semana'?'Últimos 7 dias' : 'Todos os períodos';
+}
 function metric(label,ico,icon,value,hint,cls=''){
   return `<div class="metric"><div class="top"><span class="label">${label}</span>
     <span class="ico ${ico}">${icon}</span></div>
@@ -884,3 +929,5 @@ if('serviceWorker' in navigator){
   window.addEventListener('load',()=> navigator.serviceWorker.register('sw.js').catch(()=>{}));
 }
 go('painel');
+requestAnimationFrame(moveIndicator);
+window.addEventListener('load', ()=> setTimeout(moveIndicator, 60));

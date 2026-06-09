@@ -249,3 +249,59 @@ textarea{min-height:84px;resize:vertical}
 .toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
 
 @media(min-width:680px){ .metrics{grid-template-columns:repeat(4,1fr)} }
+
+/* ===================== Layout moderno + animações ===================== */
+
+/* Transição de página direcional (suave, sem delay) */
+.view{animation:none}
+.view.enter{animation:enterv .34s cubic-bezier(.22,.61,.36,1)}
+@keyframes enterv{from{opacity:0;transform:translateX(var(--enter-x,16px))}to{opacity:1;transform:none}}
+
+/* Indicador deslizante da barra inferior (recria a animação da referência) */
+.tab-indicator{
+  position:absolute;top:4px;left:0;width:44px;height:44px;border-radius:50%;
+  background:var(--accent);opacity:0;pointer-events:none;z-index:0;
+  box-shadow:0 6px 16px rgba(255,144,0,.45);
+  transition:transform .42s cubic-bezier(.34,1.45,.5,1), opacity .25s ease;
+}
+.tab{position:relative;z-index:1}
+.tab .tab-ico{transition:transform .3s cubic-bezier(.34,1.45,.5,1), color .25s}
+.tab.active .tab-ico{transform:translateY(-3px);color:#000}
+.tab .tab-add-circle{transition:transform .25s cubic-bezier(.34,1.6,.5,1)}
+.tab.tab-add:active .tab-add-circle{transform:scale(.9)}
+
+/* Cartão "hero" principal */
+.hero{
+  background:linear-gradient(135deg,#ffb24d 0%,#ff8a00 55%,#ff7400 100%);
+  border-radius:26px;padding:20px 20px 22px;color:#241500;margin-bottom:18px;
+  box-shadow:0 14px 32px rgba(255,138,0,.30);
+  animation:heroIn .5s cubic-bezier(.22,.61,.36,1);
+}
+@keyframes heroIn{from{opacity:0;transform:translateY(10px) scale(.98)}to{opacity:1;transform:none}}
+.hero-top{display:flex;justify-content:space-between;align-items:center}
+.hero-label{font-size:13px;font-weight:700;opacity:.82}
+.hero-chip{font-size:11px;font-weight:800;background:rgba(0,0,0,.16);padding:5px 11px;border-radius:999px}
+.hero-value{font-size:36px;font-weight:900;letter-spacing:-1px;margin:10px 0 3px}
+.hero-change{font-size:13px;font-weight:800;opacity:.92}
+.hero-actions{display:flex;gap:10px;margin-top:20px}
+.qbtn{flex:1;display:flex;flex-direction:column;align-items:center;gap:7px;font-size:11px;font-weight:800;color:#241500}
+.q-ico{width:50px;height:50px;border-radius:18px;background:rgba(0,0,0,.15);display:grid;place-items:center;font-size:22px;transition:transform .15s ease}
+.qbtn:active .q-ico{transform:scale(.9)}
+
+/* Títulos de bloco e cards mais arredondados/modernos */
+.block-title{font-size:12px;font-weight:800;color:var(--muted);margin:6px 2px 10px;text-transform:uppercase;letter-spacing:.7px}
+.metric{border-radius:20px;transition:transform .14s ease}
+.metric:active{transform:scale(.975)}
+.section{border-radius:22px}
+.metric .value{font-size:21px}
+
+/* aparição escalonada dos cards de métrica */
+.metrics .metric{animation:cardIn .4s cubic-bezier(.22,.61,.36,1) both}
+.metrics .metric:nth-child(1){animation-delay:.02s}
+.metrics .metric:nth-child(2){animation-delay:.05s}
+.metrics .metric:nth-child(3){animation-delay:.08s}
+.metrics .metric:nth-child(4){animation-delay:.11s}
+.metrics .metric:nth-child(5){animation-delay:.14s}
+.metrics .metric:nth-child(6){animation-delay:.17s}
+.metrics .metric:nth-child(n+7){animation-delay:.2s}
+@keyframes cardIn{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}
