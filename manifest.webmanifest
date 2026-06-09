@@ -1,13 +1,13 @@
 {
-  "name": "Motoka Gestão",
-  "short_name": "Motoka",
-  "description": "Controle de gastos da moto e pessoais, manutenção e orçamentos. Funciona offline.",
+  "name": "Oro's hub — Motoboy Dashboard",
+  "short_name": "Oro's hub",
+  "description": "Motoboy Dashboard — controle de gastos da moto, ganhos, manutenção e orçamentos. Funciona offline.",
   "start_url": "./index.html",
   "scope": "./",
   "display": "standalone",
   "orientation": "portrait",
-  "background_color": "#f1f5f9",
-  "theme_color": "#2563eb",
+  "background_color": "#0c0c0e",
+  "theme_color": "#000000",
   "lang": "pt-BR",
   "icons": [
     { "src": "icons/icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },

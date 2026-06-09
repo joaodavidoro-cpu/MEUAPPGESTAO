@@ -1,4 +1,4 @@
-# 📈 Motoka Gestão
+# 📈 Oro's hub — Motoboy Dashboard
 
 Aplicativo (PWA) para controle de **gastos da moto**, **gastos pessoais**, **manutenção de peças** e **orçamentos para clientes**.
 
@@ -53,4 +53,4 @@ Abra `http://localhost:8080` no navegador.
 
 ---
 
-Feito com 💙 para motoboys. Sem mensalidade, sem servidor.
+Feito com 🧡 para motoboys. **Oro's hub — Motoboy Dashboard**. Sem mensalidade, sem servidor.

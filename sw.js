@@ -1,5 +1,5 @@
 /* Service Worker — cache offline (app shell) */
-const CACHE = 'motoka-gestao-v1';
+const CACHE = 'oros-hub-v2';
 const ASSETS = [
   './',
   './index.html',

@@ -3,30 +3,32 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
-  <meta name="theme-color" content="#2563eb" />
+  <meta name="theme-color" content="#000000" />
   <meta name="apple-mobile-web-app-capable" content="yes" />
-  <meta name="apple-mobile-web-app-status-bar-style" content="default" />
-  <meta name="apple-mobile-web-app-title" content="Motoka Gestão" />
-  <meta name="description" content="Controle de gastos pessoais e da moto, manutenção e orçamentos. Funciona offline." />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black" />
+  <meta name="apple-mobile-web-app-title" content="Oro's hub" />
+  <meta name="description" content="Motoboy Dashboard — controle de gastos da moto, ganhos, manutenção e orçamentos. Funciona offline." />
   <link rel="manifest" href="manifest.webmanifest" />
   <link rel="apple-touch-icon" href="icons/apple-touch-icon.png" />
   <link rel="icon" type="image/png" href="icons/icon-192.png" />
   <link rel="stylesheet" href="css/style.css" />
-  <title>Motoka Gestão</title>
+  <title>Oro's hub — Motoboy Dashboard</title>
 </head>
 <body>
   <!-- Topo / cabeçalho do app -->
   <header class="app-header">
     <div class="brand">
-      <div class="brand-logo">📈</div>
-      <div class="brand-text">
-        <strong>Motoka Gestão</strong>
-        <span>Controle de Entregas</span>
+      <div class="logohub">
+        <span class="oro">Oro's</span><span class="hub">hub</span>
       </div>
+      <span class="brand-sub">Motoboy Dashboard</span>
     </div>
-    <button id="periodoBtn" class="periodo-btn" type="button">
-      <span id="periodoLabel">Todos os Períodos</span> ▾
-    </button>
+    <div class="header-actions">
+      <button id="themeBtn" class="icon-btn" type="button" aria-label="Alternar tema">🌙</button>
+      <button id="periodoBtn" class="periodo-btn" type="button">
+        <span id="periodoLabel">Todos os Períodos</span> ▾
+      </button>
+    </div>
   </header>
 
   <!-- Conteúdo das telas -->

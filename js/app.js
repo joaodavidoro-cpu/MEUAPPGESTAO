@@ -1,5 +1,5 @@
 /* =====================================================================
-   Motoka Gestão — App offline (PWA)
+   Oro's hub — Motoboy Dashboard — App offline (PWA)
    Armazenamento 100% local (localStorage). Sem servidor, sem domínio.
    ===================================================================== */
 
@@ -49,6 +49,18 @@ const CAT_PESSOAL = [
 ];
 const catInfo = id => CAT_PESSOAL.find(c=>c.id===id) || {nome:'Outros', ico:'📦'};
 
+/* ---------------- Tema (escuro/claro) ---------------- */
+function applyTheme(t){
+  document.documentElement.setAttribute('data-theme', t);
+  localStorage.setItem('mg_theme', t);
+  const b=document.getElementById('themeBtn'); if(b) b.textContent = t==='dark'?'☀️':'🌙';
+  const meta=document.querySelector('meta[name=theme-color]');
+  if(meta) meta.setAttribute('content', t==='dark'?'#000000':'#ff9000');
+}
+let THEME = localStorage.getItem('mg_theme') || 'dark';
+applyTheme(THEME);
+document.getElementById('themeBtn').onclick = ()=>{ THEME = THEME==='dark'?'light':'dark'; applyTheme(THEME); };
+
 /* ---------------- Filtro de período ---------------- */
 let PERIODO = 'todos'; // todos | mes | semana
 function dentroPeriodo(iso){
@@ -59,7 +71,7 @@ function dentroPeriodo(iso){
   return true;
 }
 
-/* registros de moto (com cálculos) */
+/* cálculos do registro de moto */
 function calcReg(r){
   const ganhos = (r.ganhos||[]).reduce((s,g)=>s+num(g.valor),0);
   const desp = num(r.gastosRua)+num(r.manutencao)+num(r.combustivel);
@@ -68,6 +80,7 @@ function calcReg(r){
   return { ganhos, desp, lucro, horas, mediaHora: horas? lucro/horas : 0,
            km:num(r.km), mediaKm: num(r.km)? lucro/num(r.km):0 };
 }
+const somaGanhos = r => (r.ganhos||[]).reduce((s,g)=>s+num(g.valor),0);
 
 /* ================= ROTEADOR ================= */
 const routes = {};
@@ -86,21 +99,25 @@ document.querySelectorAll('.tab').forEach(t=> t.addEventListener('click', ()=>go
 routes.painel = (root)=>{
   const regs = DB.registros.filter(r=>dentroPeriodo(r.data));
   const motos = regs.filter(r=>r.tipo==='moto');
+  const ganhosExtra = regs.filter(r=>r.tipo==='ganho');
   const pess  = regs.filter(r=>r.tipo==='pessoal');
 
-  let ganho=0, gastosRua=0, manut=0, comb=0, km=0, horas=0;
-  motos.forEach(r=>{ const c=calcReg(r); ganho+=c.ganhos; gastosRua+=num(r.gastosRua); manut+=num(r.manutencao); comb+=num(r.combustivel); km+=c.km; horas+=c.horas; });
-  // manutenção registrada na aba dedicada também conta no total de manutenção
+  let ganhoMoto=0, gastosRua=0, manut=0, comb=0, km=0, horas=0;
+  motos.forEach(r=>{ const c=calcReg(r); ganhoMoto+=c.ganhos; gastosRua+=num(r.gastosRua); manut+=num(r.manutencao); comb+=num(r.combustivel); km+=c.km; horas+=c.horas; });
   const manutPecas = DB.manutencao.filter(m=>dentroPeriodo(m.dataInicio)).reduce((s,m)=>s+num(m.custo),0);
   manut += manutPecas;
-  const gastoPessoal = pess.filter(r=>dentroPeriodo(r.data)).reduce((s,r)=>s+num(r.valor),0);
 
+  const ganhoExtra = ganhosExtra.reduce((s,r)=>s+somaGanhos(r),0);
+  const gastoPessoal = pess.reduce((s,r)=>s+num(r.valor),0);
+
+  const totalGanho = ganhoMoto + ganhoExtra;
   const totalGastosMoto = gastosRua+manut+comb;
-  const lucro = ganho - totalGastosMoto;
+  const lucroMoto = ganhoMoto - totalGastosMoto;
+  const saldoFinal = lucroMoto + ganhoExtra - gastoPessoal;
 
-  // por plataforma
+  // por plataforma (moto + ganhos extra)
   const porPlat = {};
-  motos.forEach(r=> (r.ganhos||[]).forEach(g=>{ porPlat[g.plataforma]=(porPlat[g.plataforma]||0)+num(g.valor); }));
+  [...motos, ...ganhosExtra].forEach(r=> (r.ganhos||[]).forEach(g=>{ const n=g.plataforma||'Outros'; porPlat[n]=(porPlat[n]||0)+num(g.valor); }));
   const platArr = Object.entries(porPlat).sort((a,b)=>b[1]-a[1]);
   const maxPlat = Math.max(1, ...platArr.map(p=>p[1]));
 
@@ -108,16 +125,17 @@ routes.painel = (root)=>{
     <h1 class="page-title">Painel</h1>
     <p class="page-sub">Visão geral de ganhos, despesas e gastos pessoais</p>
     <div class="metrics">
-      ${metric('Total Ganho','g','$',money(ganho), motos.length+' registros')}
-      ${metric('Lucro Líquido (moto)','b','📈',money(lucro), lucro<0?'Prejuízo':'Após despesas', lucro<0?'neg':'pos')}
-      ${metric('Média por KM','p','➤',money(km?lucro/km:0), km.toFixed(0)+' km totais')}
-      ${metric('Média por Hora','a','⏱',money(horas?lucro/horas:0), horas.toFixed(1)+'h trabalhadas')}
+      ${metric('Total Ganho','g','$',money(totalGanho), motos.length+ganhosExtra.length+' registros')}
+      ${metric('Lucro Líquido (moto)','b','📈',money(lucroMoto), lucroMoto<0?'Prejuízo':'Após despesas', lucroMoto<0?'neg':'pos')}
+      ${metric('Outros Ganhos','g','💵',money(ganhoExtra), ganhosExtra.length+' sem moto', ganhoExtra>0?'pos':'')}
+      ${metric('Gastos Pessoais','r','👤',money(gastoPessoal),'Fora da moto', gastoPessoal>0?'neg':'')}
+      ${metric('Média por KM','p','➤',money(km?lucroMoto/km:0), km.toFixed(0)+' km totais')}
+      ${metric('Média por Hora','a','⏱',money(horas?lucroMoto/horas:0), horas.toFixed(1)+'h trabalhadas')}
       ${metric('Gastos na Rua','r','🛍',money(gastosRua),'Estacionamento, pedágio')}
       ${metric('Manutenção','a','🔧',money(manut),'Revisões e reparos')}
       ${metric('Combustível','b','⛽',money(comb),'Abastecimento')}
-      ${metric('Gastos Pessoais','a','👤',money(gastoPessoal),'Fora da moto', gastoPessoal>0?'neg':'')}
+      ${metric('Total Gastos (moto)','s','$',money(totalGastosMoto),'Todas as despesas')}
     </div>
-    ${metricFull('Total de Gastos (moto)','s','$',money(totalGastosMoto),'Todas as despesas da moto')}
 
     <div class="section">
       <h3>Ganhos por Plataforma</h3>
@@ -131,9 +149,10 @@ routes.painel = (root)=>{
     <div class="section">
       <h3>Resumo Geral</h3>
       <div class="bars">
-        ${resumoRow('Lucro da Moto', lucro, lucro<0?'red':'green')}
+        ${resumoRow('Lucro da Moto', lucroMoto, lucroMoto<0?'red':'green')}
+        ${resumoRow('Outros Ganhos', ganhoExtra,'green')}
         ${resumoRow('Gastos Pessoais', -gastoPessoal,'red')}
-        ${resumoRow('Saldo Final', lucro - gastoPessoal, (lucro-gastoPessoal)<0?'red':'green')}
+        ${resumoRow('Saldo Final', saldoFinal, saldoFinal<0?'red':'green')}
       </div>
     </div>
 
@@ -146,35 +165,74 @@ function metric(label,ico,icon,value,hint,cls=''){
     <span class="ico ${ico}">${icon}</span></div>
     <span class="value ${cls}">${value}</span><span class="hint">${hint}</span></div>`;
 }
-function metricFull(label,ico,icon,value,hint){
-  return `<div class="metric full" style="margin-top:12px"><div class="top"><span class="label">${label}</span>
-    <span class="ico ${ico}">${icon}</span></div><span class="value">${value}</span><span class="hint">${hint}</span></div>`;
-}
 function resumoRow(label,val,color){
   return `<div class="bar-row"><div class="bl"><span>${label}</span>
     <strong class="vv ${color}">${money(val)}</strong></div></div>`;
 }
 
+/* ================= GANHOS (controle reutilizável c/ plataforma personalizada) ================= */
+function persistPlataformas(items){
+  const cur = DB.plataformas; let changed=false;
+  items.forEach(g=>{ const n=(g.plataforma||'').trim(); if(n && !cur.includes(n)){ cur.push(n); changed=true; } });
+  if(changed) DB.plataformas = cur;
+}
+function buildGanhos(listEl, items, totalEl){
+  function updTotal(){ if(totalEl) totalEl.textContent = money(items.reduce((s,g)=>s+num(g.valor),0)); }
+  function rerender(){
+    listEl.innerHTML = items.map((g,i)=>{
+      const valInput = `<input class="input pval" data-i="${i}" inputmode="decimal" placeholder="R$ 0,00" value="${g.valor??''}">`;
+      const del = `<button class="del" data-i="${i}" title="Remover">✕</button>`;
+      if(g.custom){
+        return `<div class="plat-row">
+          <input class="input pcustom" data-i="${i}" placeholder="Escreva o nome da plataforma" value="${esc(g.plataforma)}">
+          ${valInput}${del}</div>`;
+      }
+      return `<div class="plat-row">
+        <select class="psel" data-i="${i}">
+          <option value="">Selecione a plataforma</option>
+          ${DB.plataformas.map(p=>`<option ${p===g.plataforma?'selected':''}>${esc(p)}</option>`).join('')}
+          <option value="__new__">➕ Adicionar nova plataforma…</option>
+        </select>${valInput}${del}</div>`;
+    }).join('');
+    listEl.querySelectorAll('.psel').forEach(s=>s.onchange=e=>{
+      const i=+e.target.dataset.i;
+      if(e.target.value==='__new__'){ items[i].custom=true; items[i].plataforma=''; rerender(); const inp=listEl.querySelector(`.pcustom[data-i="${i}"]`); inp&&inp.focus(); }
+      else items[i].plataforma=e.target.value;
+    });
+    listEl.querySelectorAll('.pcustom').forEach(s=>s.oninput=e=>{ items[+e.target.dataset.i].plataforma=e.target.value; });
+    listEl.querySelectorAll('.pval').forEach(s=>s.oninput=e=>{ items[+e.target.dataset.i].valor=e.target.value; updTotal(); });
+    listEl.querySelectorAll('.del').forEach(b=>b.onclick=e=>{ items.splice(+e.target.dataset.i,1); if(!items.length)items.push({plataforma:'',valor:'',custom:false}); rerender(); updTotal(); });
+    updTotal();
+  }
+  rerender();
+}
+function ganhosFromRec(rec){
+  return (rec.ganhos||[{plataforma:'',valor:''}]).map(g=>({
+    plataforma:g.plataforma||'', valor:g.valor??'',
+    custom: !!g.plataforma && !DB.plataformas.includes(g.plataforma)
+  }));
+}
+
 /* ================= NOVO REGISTRO ================= */
-let novoTipo = 'moto';
+let novoTipo = 'moto';   // moto | ganho | pessoal
+let editingId = null;
 routes.novo = (root)=>{
   root.innerHTML = `
     <h1 class="page-title">Novo Registro</h1>
     <p class="page-sub">Adicione os dados do seu dia</p>
     <div class="toggle2">
-      <button id="tgMoto" class="${novoTipo==='moto'?'on moto':''}">🏍️ Gasto da Moto</button>
-      <button id="tgPess" class="${novoTipo==='pessoal'?'on pessoal':''}">👤 Gasto Pessoal</button>
+      <button id="tgMoto" class="${novoTipo==='moto'?'on moto':''}">🏍️ Moto</button>
+      <button id="tgGanho" class="${novoTipo==='ganho'?'on ganho':''}">💵 Ganho Extra</button>
+      <button id="tgPess" class="${novoTipo==='pessoal'?'on pessoal':''}">👤 Pessoal</button>
     </div>
     <div id="formArea"></div>`;
   document.getElementById('tgMoto').onclick=()=>{novoTipo='moto';go('novo');};
+  document.getElementById('tgGanho').onclick=()=>{novoTipo='ganho';go('novo');};
   document.getElementById('tgPess').onclick=()=>{novoTipo='pessoal';go('novo');};
-  novoTipo==='moto' ? formMoto() : formPessoal();
+  if(novoTipo==='moto') formMoto();
+  else if(novoTipo==='ganho') formGanho();
+  else formPessoal();
 };
-
-function platOptions(sel){
-  return DB.plataformas.map(p=>`<option ${p===sel?'selected':''}>${esc(p)}</option>`).join('');
-}
-let editingId = null; // id do registro em edição
 
 function formMoto(pre){
   const f = pre || { data:todayISO(), ganhos:[{plataforma:'',valor:''}], km:'', horas:'', gastosRua:'', manutencao:'', combustivel:'', obs:'' };
@@ -219,30 +277,17 @@ function formMoto(pre){
       <button class="btn green" id="saveMoto">✓ Salvar Registro</button>
     </div>`;
 
-  const list = document.getElementById('platList');
-  function renderPlat(items){
-    list.innerHTML = items.map((g,i)=>`
-      <div class="plat-row">
-        <select data-i="${i}" class="psel">${`<option value="">Selecione a plataforma</option>`+platOptions(g.plataforma)}</select>
-        <input class="input pval" data-i="${i}" inputmode="decimal" placeholder="R$ 0,00" value="${g.valor}">
-        <button class="del" data-i="${i}">✕</button>
-      </div>`).join('');
-    list.querySelectorAll('.psel').forEach(s=>s.onchange=e=>{items[e.target.dataset.i].plataforma=e.target.value;});
-    list.querySelectorAll('.pval').forEach(s=>s.oninput=e=>{items[e.target.dataset.i].valor=e.target.value; updTotal(items);});
-    list.querySelectorAll('.del').forEach(b=>b.onclick=e=>{ items.splice(e.target.dataset.i,1); if(!items.length)items.push({plataforma:'',valor:''}); renderPlat(items); updTotal(items);});
-    updTotal(items);
-  }
-  function updTotal(items){ document.getElementById('totalDia').textContent = money(items.reduce((s,g)=>s+num(g.valor),0)); }
-  const items = f.ganhos.map(g=>({...g}));
-  renderPlat(items);
-  document.getElementById('addPlat').onclick=()=>{ items.push({plataforma:'',valor:''}); renderPlat(items); };
+  const items = ganhosFromRec(f);
+  buildGanhos(document.getElementById('platList'), items, document.getElementById('totalDia'));
+  document.getElementById('addPlat').onclick=()=>{ items.push({plataforma:'',valor:'',custom:false}); buildGanhos(document.getElementById('platList'), items, document.getElementById('totalDia')); };
   document.getElementById('cancelBtn').onclick=()=>{ editingId=null; go('painel'); };
 
   document.getElementById('saveMoto').onclick=()=>{
+    persistPlataformas(items);
     const rec = {
       id: editingId||uid(), tipo:'moto',
       data: document.getElementById('mData').value || todayISO(),
-      ganhos: items.filter(g=>g.plataforma||num(g.valor)).map(g=>({plataforma:g.plataforma||'Outros', valor:num(g.valor)})),
+      ganhos: items.filter(g=>g.plataforma||num(g.valor)).map(g=>({plataforma:(g.plataforma||'Outros').trim(), valor:num(g.valor)})),
       km: num(document.getElementById('mKm').value),
       horas: parseHoras(document.getElementById('mHoras').value),
       gastosRua: num(document.getElementById('mRua').value),
@@ -254,6 +299,51 @@ function formMoto(pre){
     if(editingId){ arr = arr.map(r=>r.id===editingId?rec:r); } else arr.unshift(rec);
     DB.registros = arr; editingId=null;
     toast('Registro da moto salvo ✓'); go('historico');
+  };
+}
+
+function formGanho(pre){
+  const f = pre || { data:todayISO(), ganhos:[{plataforma:'',valor:''}], obs:'' };
+  const area = document.getElementById('formArea');
+  area.innerHTML = `
+    <div class="field"><label>Data <span class="req">*</span></label>
+      <input class="input" type="date" id="gData" value="${f.data}"></div>
+
+    <div class="block green">
+      <h4>💵 Ganhos (sem usar a moto)</h4>
+      <p class="hintline" style="margin:-4px 0 12px">Registre ganhos avulsos — não exige quilometragem nem horas.</p>
+      <div id="gList"></div>
+      <button class="add-line" id="gAdd">＋ Adicionar Outro Ganho</button>
+      <div class="total-line"><span>Total:</span><span class="v" id="gTotal">R$ 0,00</span></div>
+    </div>
+
+    <div class="field"><label>Observações</label>
+      <textarea id="gObs" placeholder="Descreva a origem do ganho...">${esc(f.obs)}</textarea></div>
+
+    <div class="btn-row">
+      <button class="btn ghost" id="cancelBtn">Cancelar</button>
+      <button class="btn green" id="saveGanho">✓ Salvar Ganho</button>
+    </div>`;
+
+  const items = ganhosFromRec(f);
+  buildGanhos(document.getElementById('gList'), items, document.getElementById('gTotal'));
+  document.getElementById('gAdd').onclick=()=>{ items.push({plataforma:'',valor:'',custom:false}); buildGanhos(document.getElementById('gList'), items, document.getElementById('gTotal')); };
+  document.getElementById('cancelBtn').onclick=()=>{ editingId=null; go('painel'); };
+
+  document.getElementById('saveGanho').onclick=()=>{
+    const validos = items.filter(g=>g.plataforma||num(g.valor));
+    if(!validos.length || validos.reduce((s,g)=>s+num(g.valor),0)<=0){ toast('Informe ao menos um ganho'); return; }
+    persistPlataformas(items);
+    const rec = {
+      id: editingId||uid(), tipo:'ganho',
+      data: document.getElementById('gData').value || todayISO(),
+      ganhos: validos.map(g=>({plataforma:(g.plataforma||'Outros').trim(), valor:num(g.valor)})),
+      obs: document.getElementById('gObs').value.trim(),
+    };
+    let arr = DB.registros;
+    if(editingId){ arr = arr.map(r=>r.id===editingId?rec:r); } else arr.unshift(rec);
+    DB.registros = arr; editingId=null;
+    toast('Ganho salvo ✓'); go('historico');
   };
 }
 
@@ -309,32 +399,31 @@ function formPessoal(pre){
 
 /* ================= HISTÓRICO ================= */
 let histFiltro='todas', histBusca='';
-routes.historico = (root)=>{
+function histListData(){
   let regs = DB.registros.slice().sort((a,b)=> (a.data<b.data?1:-1));
-  if(histFiltro==='moto') regs=regs.filter(r=>r.tipo==='moto');
-  if(histFiltro==='pessoal') regs=regs.filter(r=>r.tipo==='pessoal');
-  if(histBusca){
-    const q=histBusca.toLowerCase();
-    regs=regs.filter(r=> JSON.stringify(r).toLowerCase().includes(q));
-  }
+  if(histFiltro!=='todas') regs=regs.filter(r=>r.tipo===histFiltro);
+  if(histBusca){ const q=histBusca.toLowerCase(); regs=regs.filter(r=> JSON.stringify(r).toLowerCase().includes(q)); }
+  return regs;
+}
+routes.historico = (root)=>{
+  const regs = histListData();
   root.innerHTML = `
     <h1 class="page-title">Histórico</h1>
-    <p class="page-sub">${regs.length} registro(s) — moto e pessoais</p>
+    <p class="page-sub">${regs.length} registro(s) — moto, ganhos e pessoais</p>
     <div class="search"><span class="mag">🔎</span>
       <input class="input" id="hBusca" placeholder="Buscar..." value="${esc(histBusca)}"></div>
     <div class="filters">
       <button class="chip ${histFiltro==='todas'?'on':''}" data-f="todas">Todas</button>
       <button class="chip ${histFiltro==='moto'?'on':''}" data-f="moto">🏍️ Moto</button>
+      <button class="chip ${histFiltro==='ganho'?'on':''}" data-f="ganho">💵 Ganhos</button>
       <button class="chip ${histFiltro==='pessoal'?'on':''}" data-f="pessoal">👤 Pessoais</button>
     </div>
     <div id="histList">${regs.length? regs.map(recCard).join('') : `<div class="empty"><div class="big">🗒️</div><p>Nenhum registro ainda</p></div>`}</div>`;
 
   document.querySelectorAll('.chip').forEach(c=>c.onclick=()=>{histFiltro=c.dataset.f;go('historico');});
-  const b=document.getElementById('hBusca');
-  b.oninput=e=>{ histBusca=e.target.value; const l=document.getElementById('histList');
-    let rr=DB.registros.slice().sort((a,b)=>(a.data<b.data?1:-1));
-    if(histFiltro==='moto')rr=rr.filter(r=>r.tipo==='moto'); if(histFiltro==='pessoal')rr=rr.filter(r=>r.tipo==='pessoal');
-    if(histBusca){const q=histBusca.toLowerCase(); rr=rr.filter(r=>JSON.stringify(r).toLowerCase().includes(q));}
+  document.getElementById('hBusca').oninput=e=>{
+    histBusca=e.target.value;
+    const rr=histListData(); const l=document.getElementById('histList');
     l.innerHTML = rr.length? rr.map(recCard).join(''):`<div class="empty"><div class="big">🗒️</div><p>Nada encontrado</p></div>`;
     bindRecActions();
   };
@@ -347,12 +436,24 @@ function recCard(r){
     return `<div class="rec moto">
       <div class="rhead"><span class="date">📅 ${fmtDate(r.data)}</span><span class="badge moto">MOTO</span></div>
       <div class="rgrid">
-        <div class="it"><div class="k">📈 Ganhos</div><div class="vv blue">${money(c.ganhos)}</div></div>
+        <div class="it"><div class="k">📈 Ganhos</div><div class="vv accent">${money(c.ganhos)}</div></div>
         <div class="it"><div class="k">📉 Despesas</div><div class="vv red">${money(c.desp)}</div></div>
         <div class="it"><div class="k">💲 Lucro Líquido</div><div class="vv green">${money(c.lucro)}</div></div>
         <div class="it"><div class="k">⏱ Média/Hora</div><div class="vv">${money(c.mediaHora)}</div></div>
       </div>
       <div class="meta"><span>⏱ ${c.horas.toFixed(1)} horas</span><span>➤ ${c.km.toFixed(1)} km</span><span>⛽ ${money(r.combustivel)} comb.</span></div>
+      ${r.obs?`<div class="obs">📝 ${esc(r.obs)}</div>`:''}
+      ${actionsHTML(r.id)}</div>`;
+  } else if(r.tipo==='ganho'){
+    const total=somaGanhos(r);
+    const fontes=(r.ganhos||[]).map(g=>`${esc(g.plataforma||'Outros')}: ${money(g.valor)}`).join(' · ');
+    return `<div class="rec ganho">
+      <div class="rhead"><span class="date">📅 ${fmtDate(r.data)}</span><span class="badge ganho">GANHO EXTRA</span></div>
+      <div class="rgrid">
+        <div class="it"><div class="k">💵 Total recebido</div><div class="vv green">${money(total)}</div></div>
+        <div class="it"><div class="k">🏷️ Fontes</div><div class="vv" style="font-size:13px">${(r.ganhos||[]).length}</div></div>
+      </div>
+      <div class="meta"><span>${fontes}</span></div>
       ${r.obs?`<div class="obs">📝 ${esc(r.obs)}</div>`:''}
       ${actionsHTML(r.id)}</div>`;
   } else {
@@ -375,7 +476,7 @@ function actionsHTML(id){
 function bindRecActions(){
   document.querySelectorAll('[data-ed]').forEach(b=>b.onclick=()=>{
     const r=DB.registros.find(x=>x.id===b.dataset.ed); editingId=r.id; novoTipo=r.tipo; go('novo');
-    setTimeout(()=> r.tipo==='moto'?formMoto(r):formPessoal(r),0);
+    setTimeout(()=>{ if(r.tipo==='moto')formMoto(r); else if(r.tipo==='ganho')formGanho(r); else formPessoal(r); },0);
   });
   document.querySelectorAll('[data-rm]').forEach(b=>b.onclick=()=>{
     if(confirm('Excluir este registro?')){ DB.registros = DB.registros.filter(x=>x.id!==b.dataset.rm); toast('Registro excluído'); go('historico'); }
@@ -402,12 +503,11 @@ routes.manutencao = (root)=>{
   document.getElementById('addPeca').onclick=()=>modalPeca();
   bindPecaActions();
 };
-
 function pecaCard(m){
   const kmInicio=num(m.kmInicio), kmAtual=num(m.kmAtual||m.kmInicio), kmTroca=num(m.kmVidaUtil);
   const rodado = Math.max(0, kmAtual-kmInicio);
   const pct = kmTroca? Math.min(120, rodado/kmTroca*100) : 0;
-  let barCls='', pill='', pillCls='ok', pillTxt='Em uso';
+  let barCls='', pillCls='ok', pillTxt='Em uso';
   if(m.status==='trocado'){ pillCls='end'; pillTxt='Finalizado'; barCls='over'; }
   else if(kmTroca && rodado>=kmTroca){ pillCls='warn'; pillTxt='Trocar!'; barCls='over'; }
   else if(kmTroca && pct>=80){ pillCls='warn'; pillTxt='Atenção'; barCls='warn'; }
@@ -432,7 +532,6 @@ function bindPecaActions(){
     if(confirm('Excluir esta peça?')){ DB.manutencao=DB.manutencao.filter(m=>m.id!==b.dataset.rmp); toast('Excluído'); go('manutencao'); }});
   document.querySelectorAll('[data-upd]').forEach(b=>b.onclick=()=>modalAtualizarKm(DB.manutencao.find(m=>m.id===b.dataset.upd)));
 }
-
 function modalPeca(pre){
   const m = pre || { peca:'', kmInicio:'', kmAtual:'', kmVidaUtil:'', custo:'', dataInicio:todayISO(), obs:'', status:'ativo' };
   openModal(`
@@ -459,8 +558,7 @@ function modalPeca(pre){
     <div class="btn-row">
       <button class="btn ghost" onclick="closeModal()">Cancelar</button>
       <button class="btn primary" id="kSave">Salvar</button>
-    </div>
-  `);
+    </div>`);
   document.getElementById('kSave').onclick=()=>{
     const peca=document.getElementById('kPeca').value.trim();
     if(!peca){ toast('Informe o nome da peça'); return; }
@@ -562,7 +660,7 @@ function calcOrc(d){
   const t=TIPOS_ENTREGA.find(x=>x.id===d.tipoEntrega)||TIPOS_ENTREGA[0];
   let v = t.base + num(d.distancia)*TAXA_KM + num(d.espera)*TAXA_ESPERA;
   if(num(d.peso)>5) v += (num(d.peso)-5)*1.5;
-  if(d.urgente) v *= 1.10; // +10%
+  if(d.urgente) v *= 1.10;
   return Math.round(v*100)/100;
 }
 function modalOrc(pre){
@@ -614,8 +712,7 @@ function modalOrc(pre){
     <div class="btn-row">
       <button class="btn ghost" onclick="closeModal()">Cancelar</button>
       <button class="btn primary" id="oSave">Salvar Orçamento</button>
-    </div>
-  `);
+    </div>`);
   const recalc=()=>{
     const d2={ tipoEntrega:document.querySelector('input[name=otipo]:checked').value,
       distancia:document.getElementById('oDist').value, espera:document.getElementById('oEsp').value,
@@ -651,7 +748,7 @@ function modalOrc(pre){
 }
 function shareOrc(o){
   const t=TIPOS_ENTREGA.find(x=>x.id===o.tipoEntrega);
-  const txt = `*Orçamento de Entrega — Motoka Gestão*\n\n`+
+  const txt = `*Orçamento de Entrega — Oro's hub*\n\n`+
     `👤 Cliente: ${o.cliente}\n📍 Retirada: ${o.origem}\n🏁 Entrega: ${o.destino}\n`+
     `📦 Tipo: ${t?t.nome:''}\n➤ Distância: ${o.distancia} km\n`+
     (o.urgente?`⚡ Entrega urgente\n`:'')+
@@ -684,12 +781,14 @@ function exportCSV(){
   DB.registros.forEach(r=>{
     if(r.tipo==='moto'){ const c=calcReg(r);
       rows.push(['Moto',r.data,(r.ganhos||[]).map(g=>g.plataforma+'='+g.valor).join('|'),c.ganhos.toFixed(2),c.desp.toFixed(2),c.km,c.horas,r.obs||'']);
+    } else if(r.tipo==='ganho'){
+      rows.push(['Ganho Extra',r.data,(r.ganhos||[]).map(g=>g.plataforma+'='+g.valor).join('|'),somaGanhos(r).toFixed(2),'','','',r.obs||'']);
     } else rows.push(['Pessoal',r.data,catInfo(r.categoria).nome,'',num(r.valor).toFixed(2),'','',r.descricao||r.obs||'']);
   });
   const csv=rows.map(r=>r.map(c=>`"${String(c).replace(/"/g,'""')}"`).join(',')).join('\n');
   const blob=new Blob(["﻿"+csv],{type:'text/csv;charset=utf-8'});
   const a=document.createElement('a'); a.href=URL.createObjectURL(blob);
-  a.download='motoka-gestao.csv'; a.click(); toast('CSV exportado ✓');
+  a.download='oros-hub-motoboy.csv'; a.click(); toast('CSV exportado ✓');
 }
 
 /* ================= Boot ================= */
