@@ -305,3 +305,87 @@ textarea{min-height:84px;resize:vertical}
 .metrics .metric:nth-child(6){animation-delay:.17s}
 .metrics .metric:nth-child(n+7){animation-delay:.2s}
 @keyframes cardIn{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}
+
+/* ===== v10: ajustes de indicador, cards, popover de período, Garagem ===== */
+
+/* Header esquerdo (menu + marca) */
+.header-left{display:flex;align-items:center;gap:10px;min-width:0}
+
+/* --- Correção do indicador: não sobrepor o texto --- */
+.tabbar{max-width:560px;left:0;right:0;margin-inline:auto}
+.tab-indicator{width:40px;height:40px}
+.tab.active .tab-ico{transform:none;color:#000}           /* sem lift: fica centrado no círculo */
+.tab > span:not(.tab-ico){transition:opacity .2s ease, transform .2s ease}
+.tab:not(.tab-add).active > span:not(.tab-ico){opacity:0;transform:translateY(3px)}  /* esconde rótulo do ativo */
+
+/* --- Cards estilo Netflix (mais fluidos e bonitos) --- */
+.metric{
+  background:linear-gradient(155deg,var(--card) 0%,var(--card-2) 100%);
+  transition:transform .26s cubic-bezier(.22,.61,.36,1),box-shadow .26s ease,border-color .26s ease;
+  will-change:transform;
+}
+.metric:hover{transform:translateY(-4px) scale(1.025);box-shadow:0 14px 28px rgba(0,0,0,.42);border-color:var(--accent)}
+.metric:active{transform:scale(.96)}
+.metric .ico{transition:transform .26s cubic-bezier(.34,1.45,.5,1)}
+.metric:hover .ico{transform:scale(1.12) rotate(-4deg)}
+
+/* --- Popover de período (intervalo personalizado) --- */
+.popover-bg{position:fixed;inset:0;z-index:45}
+.popover{
+  position:absolute;top:calc(var(--safe-top) + 60px);right:14px;
+  width:min(300px,calc(100vw - 28px));
+  background:var(--card);border:1px solid var(--line);border-radius:18px;padding:14px;
+  box-shadow:0 18px 44px rgba(0,0,0,.55);transform-origin:top right;
+  opacity:0;transform:scale(.94) translateY(-6px);
+  transition:opacity .18s ease, transform .22s cubic-bezier(.22,.61,.36,1);
+}
+.popover-bg.show .popover{opacity:1;transform:none}
+.pop-title{font-weight:800;font-size:15px;margin-bottom:10px}
+.pop-chips{display:flex;gap:8px;margin-bottom:12px}
+.pop-sub{font-size:12px;color:var(--muted);font-weight:700;margin:4px 0 8px}
+
+/* --- Garagem (menu lateral esquerdo) --- */
+.drawer-bg{position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:55;opacity:0;transition:opacity .22s ease}
+.drawer-bg.show{opacity:1}
+.drawer{
+  position:absolute;left:0;top:0;bottom:0;width:min(84%,330px);
+  background:var(--bg-header);border-right:1px solid var(--line);
+  padding:calc(var(--safe-top) + 20px) 18px calc(20px + var(--safe-bottom));
+  display:flex;flex-direction:column;gap:14px;overflow:auto;
+  transform:translateX(-100%);transition:transform .28s cubic-bezier(.22,.61,.36,1);
+}
+.drawer-bg.show .drawer{transform:none}
+.drawer-logo{display:flex;align-items:center;gap:6px;font-weight:800;font-size:22px}
+.drawer-logo .oro{color:var(--ink)}
+.drawer-logo .hub{background:var(--accent);color:#000;padding:2px 8px;border-radius:6px}
+.drawer-head{border-bottom:1px solid var(--line);padding-bottom:12px}
+.drawer-title{font-size:15px;font-weight:800;margin-top:8px}
+.drawer-sub{font-size:12px;color:var(--muted)}
+.drawer-list{display:flex;flex-direction:column;gap:10px;flex:1}
+.drawer-item{display:flex;align-items:center;gap:12px;text-align:left;background:var(--card);
+  border:1px solid var(--line);border-radius:16px;padding:13px;transition:transform .15s ease,border-color .2s ease}
+.drawer-item:active{transform:scale(.98)}
+.drawer-item:hover{border-color:var(--accent)}
+.di-ico{width:42px;height:42px;border-radius:12px;background:var(--accent-bg);display:grid;place-items:center;font-size:20px;flex:none}
+.di-tx{display:flex;flex-direction:column;flex:1;min-width:0}
+.di-tx strong{font-size:14px}.di-tx small{font-size:11px;color:var(--muted)}
+.di-arrow{color:var(--muted);font-size:22px}
+.drawer-soon{background:var(--card-2);border-radius:16px;padding:12px}
+.ds-title{font-size:11px;font-weight:800;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;margin-bottom:8px}
+.ds-tags{display:flex;flex-wrap:wrap;gap:6px}
+.ds-tags span{font-size:11px;font-weight:700;background:var(--card);border:1px solid var(--line);border-radius:999px;padding:5px 9px;color:var(--muted)}
+.drawer-theme{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:12px;font-weight:700;color:var(--ink)}
+
+/* --- Metas & Hábitos --- */
+.back-btn{background:none;color:var(--accent);font-weight:700;font-size:14px;margin-bottom:6px;padding:4px 0;display:block}
+.hab{display:flex;align-items:center;gap:12px;background:var(--card);border:1px solid var(--line);
+  border-radius:16px;padding:13px;margin-bottom:10px;transition:transform .15s ease,border-color .2s ease}
+.hab:active{transform:scale(.99)}
+.hab.done{border-color:var(--green)}
+.hab-check{width:40px;height:40px;border-radius:50%;border:2px solid var(--line);background:transparent;
+  color:#04230f;font-weight:900;font-size:18px;flex:none;transition:.2s ease}
+.hab-check.on{background:var(--green);border-color:var(--green)}
+.hab-tx{flex:1;display:flex;flex-direction:column;min-width:0}
+.hab-tx strong{font-size:15px}.hab-tx small{font-size:12px;color:var(--muted)}
+.hab.done .hab-tx strong{text-decoration:line-through;opacity:.7}
+.hab-del{color:var(--red);font-size:16px;flex:none}

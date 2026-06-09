@@ -17,6 +17,8 @@ const DB = {
   set orcamentos(v){ DB.save(DB.k.orc, v) },
   get plataformas(){ return DB.load(DB.k.plat, ['iFood','Rappi','Uber Flash','Loggi','Freelance','99 Entregas']) },
   set plataformas(v){ DB.save(DB.k.plat, v) },
+  get habitos(){ return DB.load('mg_habitos', []) },
+  set habitos(v){ DB.save('mg_habitos', v) },
 };
 
 /* ---------------- Utilidades ---------------- */
@@ -62,9 +64,15 @@ applyTheme(THEME);
 document.getElementById('themeBtn').onclick = ()=>{ THEME = THEME==='dark'?'light':'dark'; applyTheme(THEME); };
 
 /* ---------------- Filtro de período ---------------- */
-let PERIODO = 'todos'; // todos | mes | semana
+let PERIODO = 'todos'; // todos | mes | semana | custom
+let PERIODO_INI = '', PERIODO_FIM = '';
 function dentroPeriodo(iso){
   if(PERIODO==='todos') return true;
+  if(PERIODO==='custom'){
+    if(PERIODO_INI && iso < PERIODO_INI) return false;
+    if(PERIODO_FIM && iso > PERIODO_FIM) return false;
+    return true;
+  }
   const d=new Date(iso+'T00:00:00'), now=new Date();
   if(PERIODO==='mes') return d.getFullYear()===now.getFullYear() && d.getMonth()===now.getMonth();
   if(PERIODO==='semana'){ const diff=(now-d)/86400000; return diff>=0 && diff<7; }
@@ -111,12 +119,16 @@ function moveIndicator(){
   const bar=document.querySelector('.tabbar');
   const ind=document.querySelector('.tab-indicator');
   const active=document.querySelector('.tab.active');
-  if(!bar||!ind||!active) return;
-  if(active.classList.contains('tab-add')){ ind.style.opacity='0'; return; }
-  const br=bar.getBoundingClientRect(), r=active.getBoundingClientRect();
+  if(!bar||!ind){ return; }
+  if(!active || active.classList.contains('tab-add')){ ind.style.opacity='0'; return; }
+  const ico = active.querySelector('.tab-ico') || active;
+  const br=bar.getBoundingClientRect(), r=ico.getBoundingClientRect();
+  const size = ind.offsetWidth || 40;
   const cx = r.left + r.width/2 - br.left;
+  const cy = r.top + r.height/2 - br.top;
   ind.style.opacity='1';
-  ind.style.transform = `translateX(${cx-23}px)`;
+  ind.style.top = (cy - size/2) + 'px';
+  ind.style.transform = `translateX(${cx - size/2}px)`;
 }
 window.addEventListener('resize', moveIndicator);
 
@@ -218,6 +230,7 @@ routes.painel = (root)=>{
   });
 };
 function periodoTexto(){
+  if(PERIODO==='custom') return periodoLabelTexto();
   return PERIODO==='mes'?'Este mês' : PERIODO==='semana'?'Últimos 7 dias' : 'Todos os períodos';
 }
 function metric(label,ico,icon,value,hint,cls=''){
@@ -873,19 +886,140 @@ function openModal(html){
 function closeModal(){ document.getElementById('modalRoot').innerHTML=''; }
 window.closeModal=closeModal;
 
-/* ================= Período (header) ================= */
-document.getElementById('periodoBtn').onclick=()=>{
-  const opts=[['todos','Todos os Períodos'],['mes','Este Mês'],['semana','Últimos 7 dias']];
-  const i=opts.findIndex(o=>o[0]===PERIODO);
-  const next=opts[(i+1)%opts.length];
-  PERIODO=next[0]; document.getElementById('periodoLabel').textContent=next[1];
-  go(current);
+/* ================= GARAGEM (menu lateral esquerdo) ================= */
+function openGaragem(){
+  closeGaragem();
+  const d=document.createElement('div');
+  d.className='drawer-bg'; d.id='garagem';
+  d.innerHTML=`
+    <aside class="drawer" onclick="event.stopPropagation()">
+      <div class="drawer-head">
+        <div class="drawer-logo"><span class="oro">Oro's</span><span class="hub">hub</span></div>
+        <div class="drawer-title">🔧 Garagem</div>
+        <div class="drawer-sub">Ferramentas e novas funções</div>
+      </div>
+      <nav class="drawer-list">
+        <button class="drawer-item" data-go="habitos">
+          <span class="di-ico">🎯</span>
+          <span class="di-tx"><strong>Metas & Hábitos</strong><small>Planner diário e hábitos</small></span>
+          <span class="di-arrow">›</span>
+        </button>
+        <button class="drawer-item" data-go="painel">
+          <span class="di-ico">📊</span>
+          <span class="di-tx"><strong>Painel financeiro</strong><small>Ganhos, gastos e médias</small></span>
+          <span class="di-arrow">›</span>
+        </button>
+        <div class="drawer-soon">
+          <div class="ds-title">Em breve</div>
+          <div class="ds-tags"><span>📅 Agenda</span><span>⛽ Consumo/L</span><span>🏆 Conquistas</span></div>
+          <p class="hintline" style="margin-top:8px">Novas funções vão aparecer aqui na sua Garagem.</p>
+        </div>
+      </nav>
+      <button class="drawer-theme" id="drawerTheme">🌗 Alternar tema (escuro/claro)</button>
+    </aside>`;
+  d.onclick=closeGaragem;
+  document.getElementById('modalRoot').appendChild(d);
+  requestAnimationFrame(()=>d.classList.add('show'));
+  d.querySelectorAll('.drawer-item').forEach(b=>b.onclick=()=>{ closeGaragem(); go(b.dataset.go); });
+  document.getElementById('drawerTheme').onclick=()=>{ THEME=THEME==='dark'?'light':'dark'; applyTheme(THEME); };
+}
+function closeGaragem(){ const g=document.getElementById('garagem'); if(g){ g.classList.remove('show'); setTimeout(()=>g.remove(),220); } }
+document.getElementById('menuBtn').onclick=openGaragem;
+
+/* ================= MÓDULO: Metas & Hábitos ================= */
+routes.habitos = (root)=>{
+  const hoje=todayISO();
+  const habitos=DB.habitos;
+  root.innerHTML=`
+    <button class="back-btn" id="backHab">‹ Voltar ao Painel</button>
+    <h1 class="page-title">Metas & Hábitos</h1>
+    <p class="page-sub">${fmtDate(hoje)} • marque o que cumpriu hoje</p>
+    <div class="block amber" style="margin-bottom:16px">
+      <h4>➕ Novo hábito / meta</h4>
+      <div class="plat-row" style="margin-bottom:0">
+        <input class="input" id="habNome" placeholder="Ex: Beber 2L de água" style="flex:1">
+        <button class="del" id="habAdd" style="width:auto;padding:0 16px;color:var(--accent)">＋</button>
+      </div>
+    </div>
+    <div id="habList">${ habitos.length? habitos.map(habCard).join('') : `<div class="empty"><div class="big">🎯</div><p>Nenhum hábito ainda.<br>Adicione metas diárias para acompanhar.</p></div>` }</div>`;
+  document.getElementById('backHab').onclick=()=>go('painel');
+  const addHab=()=>{ const nome=document.getElementById('habNome').value.trim(); if(!nome) return;
+    const arr=DB.habitos; arr.unshift({id:uid(),nome,dias:{}}); DB.habitos=arr; go('habitos'); };
+  document.getElementById('habAdd').onclick=addHab;
+  document.getElementById('habNome').addEventListener('keydown',e=>{ if(e.key==='Enter'){e.preventDefault();addHab();} });
+  bindHabActions();
 };
+function habStreak(h){
+  let s=0; const d=new Date();
+  for(;;){ const iso=d.toISOString().slice(0,10); if(h.dias&&h.dias[iso]){ s++; d.setDate(d.getDate()-1); } else break; }
+  return s;
+}
+function habCard(h){
+  const hoje=todayISO(); const done=!!(h.dias&&h.dias[hoje]); const st=habStreak(h);
+  return `<div class="hab ${done?'done':''}">
+    <button class="hab-check ${done?'on':''}" data-tg="${h.id}">${done?'✓':''}</button>
+    <div class="hab-tx"><strong>${esc(h.nome)}</strong><small>🔥 ${st} dia(s) seguidos</small></div>
+    <button class="hab-del" data-del="${h.id}">🗑️</button>
+  </div>`;
+}
+function bindHabActions(){
+  document.querySelectorAll('[data-tg]').forEach(b=>b.onclick=()=>{
+    const arr=DB.habitos; const h=arr.find(x=>x.id===b.dataset.tg); const hoje=todayISO();
+    h.dias=h.dias||{}; if(h.dias[hoje]) delete h.dias[hoje]; else h.dias[hoje]=true;
+    DB.habitos=arr; go('habitos');
+  });
+  document.querySelectorAll('[data-del]').forEach(b=>b.onclick=()=>{
+    if(confirm('Excluir este hábito?')){ DB.habitos=DB.habitos.filter(x=>x.id!==b.dataset.del); go('habitos'); }
+  });
+}
+
+/* ================= Período (header) ================= */
+function periodoLabelTexto(){
+  if(PERIODO==='custom') return (PERIODO_INI?fmtDate(PERIODO_INI):'…')+' – '+(PERIODO_FIM?fmtDate(PERIODO_FIM):'…');
+  return PERIODO==='mes'?'Este Mês' : PERIODO==='semana'?'Últimos 7 dias' : 'Todos os Períodos';
+}
+function setPeriodo(p, ini, fim){
+  PERIODO=p; PERIODO_INI=ini||''; PERIODO_FIM=fim||'';
+  document.getElementById('periodoLabel').textContent = periodoLabelTexto();
+  go(current);
+}
+function openPeriodoPopover(){
+  closePeriodoPopover();
+  const pop=document.createElement('div');
+  pop.className='popover-bg'; pop.id='perPop';
+  pop.innerHTML=`
+    <div class="popover" onclick="event.stopPropagation()">
+      <div class="pop-title">Período</div>
+      <div class="pop-chips">
+        <button class="chip ${PERIODO==='todos'?'on':''}" data-p="todos">Todos</button>
+        <button class="chip ${PERIODO==='mes'?'on':''}" data-p="mes">Este mês</button>
+        <button class="chip ${PERIODO==='semana'?'on':''}" data-p="semana">7 dias</button>
+      </div>
+      <div class="pop-sub">Intervalo personalizado</div>
+      <div class="row2">
+        <div class="field" style="margin:0"><label>De</label><input class="input" type="date" id="perIni" value="${PERIODO==='custom'?PERIODO_INI:''}"></div>
+        <div class="field" style="margin:0"><label>Até</label><input class="input" type="date" id="perFim" value="${PERIODO==='custom'?PERIODO_FIM:''}"></div>
+      </div>
+      <button class="btn primary" id="perApply" style="margin-top:12px">Aplicar intervalo</button>
+    </div>`;
+  pop.onclick=closePeriodoPopover;
+  document.getElementById('modalRoot').appendChild(pop);
+  requestAnimationFrame(()=>pop.classList.add('show'));
+  pop.querySelectorAll('.chip').forEach(c=>c.onclick=()=>{ setPeriodo(c.dataset.p); closePeriodoPopover(); });
+  document.getElementById('perApply').onclick=()=>{
+    const ini=document.getElementById('perIni').value, fim=document.getElementById('perFim').value;
+    if(!ini && !fim){ toast('Escolha ao menos uma data'); return; }
+    if(ini && fim && ini>fim){ toast('A data inicial é depois da final'); return; }
+    setPeriodo('custom', ini, fim); closePeriodoPopover();
+  };
+}
+function closePeriodoPopover(){ const p=document.getElementById('perPop'); if(p) p.remove(); }
+document.getElementById('periodoBtn').onclick=openPeriodoPopover;
 
 /* ================= Backup / Restauração (JSON) ================= */
 function exportBackup(){
   const data={ app:"oros-hub", versao:1, exportadoEm:new Date().toISOString(),
-    registros:DB.registros, manutencao:DB.manutencao, orcamentos:DB.orcamentos, plataformas:DB.plataformas };
+    registros:DB.registros, manutencao:DB.manutencao, orcamentos:DB.orcamentos, plataformas:DB.plataformas, habitos:DB.habitos };
   const blob=new Blob([JSON.stringify(data,null,2)],{type:'application/json'});
   const a=document.createElement('a'); a.href=URL.createObjectURL(blob);
   a.download='oros-hub-backup-'+todayISO()+'.json'; a.click();
@@ -903,6 +1037,7 @@ function importBackup(file){
     if(Array.isArray(d.manutencao)) DB.manutencao = d.manutencao;
     if(Array.isArray(d.orcamentos)) DB.orcamentos = d.orcamentos;
     if(Array.isArray(d.plataformas))DB.plataformas= d.plataformas;
+    if(Array.isArray(d.habitos))    DB.habitos    = d.habitos;
     toast('Backup restaurado ✓'); go('painel');
   };
   r.readAsText(file);
