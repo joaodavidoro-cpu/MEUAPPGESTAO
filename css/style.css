@@ -156,7 +156,9 @@ textarea{min-height:84px;resize:vertical}
 .toggle2 button.on{background:var(--card)}
 .toggle2 button.on.moto{color:var(--accent)}
 .toggle2 button.on.ganho{color:var(--green)}
+.toggle2 button.on.gasto{color:var(--red)}
 .toggle2 button.on.pessoal{color:var(--blue)}
+.linkbtn{font-size:12px;color:var(--accent);font-weight:700}
 
 /* ---- Histórico ---- */
 .search{position:relative;margin-bottom:12px}

@@ -219,6 +219,34 @@ function buildGanhos(listEl, items, totalEl){
   }
   rerender();
 }
+function modalPlataformas(onClose){
+  const render=()=>{
+    const list = DB.plataformas;
+    openModal(`
+      <h3>Gerenciar Plataformas</h3>
+      <p class="msub">Toque no ✕ para remover e evitar lotar a lista.</p>
+      <div id="plManage">${ list.length? list.map((p,i)=>`
+        <div class="plat-row">
+          <div class="input" style="flex:1;display:flex;align-items:center;min-width:0">${esc(p)}</div>
+          <button class="del" data-i="${i}" title="Remover">✕</button>
+        </div>`).join('') : `<p class="hintline">Nenhuma plataforma salva ainda.</p>` }</div>
+      <div class="plat-row" style="margin-top:10px">
+        <input class="input" id="plNew" placeholder="Nome da nova plataforma" style="flex:1">
+        <button class="del" id="plAdd" style="width:auto;padding:0 16px;color:var(--accent)">＋</button>
+      </div>
+      <div class="btn-row"><button class="btn primary" id="plClose">Concluído</button></div>
+    `);
+    document.querySelectorAll('#plManage .del').forEach(b=>b.onclick=()=>{
+      const arr=DB.plataformas; arr.splice(+b.dataset.i,1); DB.plataformas=arr; render();
+    });
+    const add=()=>{ const inp=document.getElementById('plNew'); const v=(inp.value||'').trim();
+      if(v && !DB.plataformas.includes(v)){ const a=DB.plataformas; a.push(v); DB.plataformas=a; } render(); };
+    document.getElementById('plAdd').onclick=add;
+    document.getElementById('plNew').addEventListener('keydown',e=>{ if(e.key==='Enter'){ e.preventDefault(); add(); }});
+    document.getElementById('plClose').onclick=()=>{ closeModal(); onClose && onClose(); };
+  };
+  render();
+}
 function ganhosFromRec(rec){
   return (rec.ganhos||[{plataforma:'',valor:''}]).map(g=>({
     plataforma:g.plataforma||'', valor:g.valor??'',
@@ -230,18 +258,25 @@ function ganhosFromRec(rec){
 let novoTipo = 'moto';   // moto | ganho | pessoal
 let editingId = null;
 routes.novo = (root)=>{
+  const isMoto = novoTipo==='moto';
   root.innerHTML = `
     <h1 class="page-title">Novo Registro</h1>
     <p class="page-sub">Adicione os dados do seu dia</p>
     <div class="toggle2">
-      <button id="tgMoto" class="${novoTipo==='moto'?'on moto':''}">🏍️ Moto</button>
-      <button id="tgGanho" class="${novoTipo==='ganho'?'on ganho':''}">💵 Ganho Extra</button>
-      <button id="tgPess" class="${novoTipo==='pessoal'?'on pessoal':''}">👤 Pessoal</button>
+      <button id="tgMoto" class="${isMoto?'on moto':''}">🏍️ Moto</button>
+      <button id="tgPess" class="${!isMoto?'on pessoal':''}">👤 Pessoal</button>
     </div>
+    ${!isMoto? `<div class="toggle2" style="margin-top:-8px">
+      <button id="subGasto" class="${novoTipo==='pessoal'?'on gasto':''}">💸 Gasto</button>
+      <button id="subGanho" class="${novoTipo==='ganho'?'on ganho':''}">💵 Ganho</button>
+    </div>`:''}
     <div id="formArea"></div>`;
   document.getElementById('tgMoto').onclick=()=>{novoTipo='moto';go('novo');};
-  document.getElementById('tgGanho').onclick=()=>{novoTipo='ganho';go('novo');};
-  document.getElementById('tgPess').onclick=()=>{novoTipo='pessoal';go('novo');};
+  document.getElementById('tgPess').onclick=()=>{novoTipo=(novoTipo==='ganho'?'ganho':'pessoal');go('novo');};
+  if(!isMoto){
+    document.getElementById('subGasto').onclick=()=>{novoTipo='pessoal';go('novo');};
+    document.getElementById('subGanho').onclick=()=>{novoTipo='ganho';go('novo');};
+  }
   if(novoTipo==='moto') formMoto();
   else if(novoTipo==='ganho') formGanho();
   else formPessoal();
@@ -255,7 +290,10 @@ function formMoto(pre){
       <input class="input" type="date" id="mData" value="${f.data}"></div>
 
     <div class="block green">
-      <h4>💰 Ganhos por Plataforma</h4>
+      <div class="section-head" style="margin-bottom:10px">
+        <h4 style="margin:0">💰 Ganhos por Plataforma</h4>
+        <button id="managePlat" class="linkbtn">⚙️ Gerenciar</button>
+      </div>
       <div id="platList"></div>
       <button class="add-line" id="addPlat">＋ Adicionar Outra Plataforma</button>
       <div class="total-line"><span>Total do Dia:</span><span class="v" id="totalDia">R$ 0,00</span></div>
@@ -290,9 +328,12 @@ function formMoto(pre){
       <button class="btn green" id="saveMoto">✓ Salvar Registro</button>
     </div>`;
 
+  const listEl=document.getElementById('platList'), totalEl=document.getElementById('totalDia');
   const items = ganhosFromRec(f);
-  buildGanhos(document.getElementById('platList'), items, document.getElementById('totalDia'));
-  document.getElementById('addPlat').onclick=()=>{ items.push({plataforma:'',valor:'',custom:false}); buildGanhos(document.getElementById('platList'), items, document.getElementById('totalDia')); };
+  const rebuild=()=>buildGanhos(listEl, items, totalEl);
+  rebuild();
+  document.getElementById('addPlat').onclick=()=>{ items.push({plataforma:'',valor:'',custom:false}); rebuild(); };
+  document.getElementById('managePlat').onclick=()=>modalPlataformas(rebuild);
   document.getElementById('cancelBtn').onclick=()=>{ editingId=null; go('painel'); };
 
   document.getElementById('saveMoto').onclick=()=>{
@@ -323,8 +364,11 @@ function formGanho(pre){
       <input class="input" type="date" id="gData" value="${f.data}"></div>
 
     <div class="block green">
-      <h4>💵 Ganhos (sem usar a moto)</h4>
-      <p class="hintline" style="margin:-4px 0 12px">Registre ganhos avulsos — não exige quilometragem nem horas.</p>
+      <div class="section-head" style="margin-bottom:6px">
+        <h4 style="margin:0">💵 Ganhos (sem usar a moto)</h4>
+        <button id="managePlat" class="linkbtn">⚙️ Gerenciar</button>
+      </div>
+      <p class="hintline" style="margin:0 0 12px">Registre ganhos avulsos — não exige quilometragem nem horas.</p>
       <div id="gList"></div>
       <button class="add-line" id="gAdd">＋ Adicionar Outro Ganho</button>
       <div class="total-line"><span>Total:</span><span class="v" id="gTotal">R$ 0,00</span></div>
@@ -338,9 +382,12 @@ function formGanho(pre){
       <button class="btn green" id="saveGanho">✓ Salvar Ganho</button>
     </div>`;
 
+  const listEl=document.getElementById('gList'), totalEl=document.getElementById('gTotal');
   const items = ganhosFromRec(f);
-  buildGanhos(document.getElementById('gList'), items, document.getElementById('gTotal'));
-  document.getElementById('gAdd').onclick=()=>{ items.push({plataforma:'',valor:'',custom:false}); buildGanhos(document.getElementById('gList'), items, document.getElementById('gTotal')); };
+  const rebuild=()=>buildGanhos(listEl, items, totalEl);
+  rebuild();
+  document.getElementById('gAdd').onclick=()=>{ items.push({plataforma:'',valor:'',custom:false}); rebuild(); };
+  document.getElementById('managePlat').onclick=()=>modalPlataformas(rebuild);
   document.getElementById('cancelBtn').onclick=()=>{ editingId=null; go('painel'); };
 
   document.getElementById('saveGanho').onclick=()=>{
