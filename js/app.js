@@ -156,9 +156,22 @@ routes.painel = (root)=>{
       </div>
     </div>
 
-    <button class="btn ghost" id="exportBtn" style="margin-top:16px">⬇ Exportar dados (CSV)</button>
+    <div class="section">
+      <h3>💾 Backup dos dados</h3>
+      <p class="hintline" style="margin:-4px 0 12px">Seus dados ficam salvos só neste aparelho. Faça um backup de vez em quando — assim você nunca perde nada se reinstalar o app ou trocar de celular.</p>
+      <div class="btn-row">
+        <button class="btn primary" id="backupBtn">⬇ Salvar Backup</button>
+        <button class="btn ghost" id="restoreBtn">⬆ Restaurar</button>
+      </div>
+      <button class="btn ghost" id="exportBtn" style="margin-top:10px">Exportar CSV (planilha)</button>
+      <input type="file" id="restoreFile" accept="application/json,.json" hidden>
+    </div>
   `;
   document.getElementById('exportBtn').onclick = exportCSV;
+  document.getElementById('backupBtn').onclick = exportBackup;
+  const fileInp = document.getElementById('restoreFile');
+  document.getElementById('restoreBtn').onclick = ()=> fileInp.click();
+  fileInp.onchange = e=>{ if(e.target.files[0]) importBackup(e.target.files[0]); e.target.value=''; };
 };
 function metric(label,ico,icon,value,hint,cls=''){
   return `<div class="metric"><div class="top"><span class="label">${label}</span>
@@ -774,6 +787,32 @@ document.getElementById('periodoBtn').onclick=()=>{
   PERIODO=next[0]; document.getElementById('periodoLabel').textContent=next[1];
   go(current);
 };
+
+/* ================= Backup / Restauração (JSON) ================= */
+function exportBackup(){
+  const data={ app:"oros-hub", versao:1, exportadoEm:new Date().toISOString(),
+    registros:DB.registros, manutencao:DB.manutencao, orcamentos:DB.orcamentos, plataformas:DB.plataformas };
+  const blob=new Blob([JSON.stringify(data,null,2)],{type:'application/json'});
+  const a=document.createElement('a'); a.href=URL.createObjectURL(blob);
+  a.download='oros-hub-backup-'+todayISO()+'.json'; a.click();
+  toast('Backup salvo ✓ — guarde o arquivo!');
+}
+function importBackup(file){
+  const r=new FileReader();
+  r.onload=()=>{
+    let d; try{ d=JSON.parse(r.result); }catch(e){ alert('Arquivo de backup inválido.'); return; }
+    if(!d || (d.registros===undefined && d.manutencao===undefined && d.orcamentos===undefined)){
+      alert('Este arquivo não parece ser um backup do Oro\'s hub.'); return; }
+    const qtd=(d.registros||[]).length;
+    if(!confirm('Restaurar este backup?\n\n'+qtd+' registro(s) serão carregados e SUBSTITUIRÃO os dados atuais deste aparelho.')) return;
+    if(Array.isArray(d.registros))  DB.registros  = d.registros;
+    if(Array.isArray(d.manutencao)) DB.manutencao = d.manutencao;
+    if(Array.isArray(d.orcamentos)) DB.orcamentos = d.orcamentos;
+    if(Array.isArray(d.plataformas))DB.plataformas= d.plataformas;
+    toast('Backup restaurado ✓'); go('painel');
+  };
+  r.readAsText(file);
+}
 
 /* ================= Exportar CSV ================= */
 function exportCSV(){
