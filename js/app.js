@@ -77,8 +77,10 @@ function calcReg(r){
   const desp = num(r.gastosRua)+num(r.manutencao)+num(r.combustivel);
   const lucro = ganhos - desp;
   const horas = num(r.horas);
-  return { ganhos, desp, lucro, horas, mediaHora: horas? lucro/horas : 0,
-           km:num(r.km), mediaKm: num(r.km)? lucro/num(r.km):0 };
+  // média/hora e média/km usam ganhos brutos (igual ao Painel),
+  // assim despesas pontuais (ex: gasolina) não distorcem o dia.
+  return { ganhos, desp, lucro, horas, mediaHora: horas? ganhos/horas : 0,
+           km:num(r.km), mediaKm: num(r.km)? ganhos/num(r.km):0 };
 }
 const somaGanhos = r => (r.ganhos||[]).reduce((s,g)=>s+num(g.valor),0);
 
