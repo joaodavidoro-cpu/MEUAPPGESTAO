@@ -1,5 +1,7 @@
-/* Service Worker — cache offline (app shell) */
-const CACHE = 'oros-hub-v6';
+/* Service Worker — Oro's hub
+   Estratégia "network-first": com internet, sempre pega a versão mais nova;
+   sem internet, usa a cópia salva (offline). Evita ficar preso em versão antiga. */
+const CACHE = 'oros-hub-v7';
 const ASSETS = [
   './',
   './index.html',
@@ -22,14 +24,16 @@ self.addEventListener('activate', e=>{
   );
 });
 
-/* cache-first: tudo funciona offline depois da 1ª visita */
+/* network-first: tenta a rede e atualiza o cache; se falhar (offline), usa o cache */
 self.addEventListener('fetch', e=>{
   if(e.request.method!=='GET') return;
   e.respondWith(
-    caches.match(e.request).then(hit=> hit || fetch(e.request).then(res=>{
+    fetch(e.request).then(res=>{
       const copy=res.clone();
       caches.open(CACHE).then(c=>c.put(e.request, copy)).catch(()=>{});
       return res;
-    }).catch(()=> caches.match('./index.html')))
+    }).catch(()=>
+      caches.match(e.request).then(hit=> hit || caches.match('./index.html'))
+    )
   );
 });
