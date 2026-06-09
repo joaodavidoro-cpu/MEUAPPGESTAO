@@ -129,8 +129,8 @@ routes.painel = (root)=>{
       ${metric('Lucro Líquido (moto)','b','📈',money(lucroMoto), lucroMoto<0?'Prejuízo':'Após despesas', lucroMoto<0?'neg':'pos')}
       ${metric('Outros Ganhos','g','💵',money(ganhoExtra), ganhosExtra.length+' sem moto', ganhoExtra>0?'pos':'')}
       ${metric('Gastos Pessoais','r','👤',money(gastoPessoal),'Fora da moto', gastoPessoal>0?'neg':'')}
-      ${metric('Média por KM','p','➤',money(km?lucroMoto/km:0), km.toFixed(0)+' km totais')}
-      ${metric('Média por Hora','a','⏱',money(horas?lucroMoto/horas:0), horas.toFixed(1)+'h trabalhadas')}
+      ${metric('Média por KM','p','➤',money(km?ganhoMoto/km:0), km.toFixed(0)+' km totais')}
+      ${metric('Média por Hora','a','⏱',money(horas?ganhoMoto/horas:0), horas.toFixed(1)+'h trabalhadas')}
       ${metric('Gastos na Rua','r','🛍',money(gastosRua),'Estacionamento, pedágio')}
       ${metric('Manutenção','a','🔧',money(manut),'Revisões e reparos')}
       ${metric('Combustível','b','⛽',money(comb),'Abastecimento')}
